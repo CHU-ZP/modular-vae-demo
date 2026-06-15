@@ -1,0 +1,17 @@
+cat > .gitignore <<'EOF'
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+data/
+outputs/*
+!outputs/.gitkeep
+
+*.pt
+*.pth
+*.ckpt
+
+.DS_Store
+EOF
