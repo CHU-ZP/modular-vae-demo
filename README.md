@@ -1,6 +1,6 @@
 # Modular VAE Demo
 
-This project is a small PyTorch research demo for Variational Autoencoders. The fixed part is the probabilistic interface:
+A clean PyTorch demo of Variational Autoencoders as modular probabilistic latent representation learning.
 
 ```text
 x -> Encoder -> mu, logvar -> q_phi(z|x) -> z -> Decoder -> x_hat
@@ -8,137 +8,195 @@ x -> Encoder -> mu, logvar -> q_phi(z|x) -> z -> Decoder -> x_hat
                               p_psi(z)
 ```
 
-The replaceable parts are the encoder backbone, decoder backbone, prior, and ELBO configuration.
+The fixed part is the probabilistic interface. The replaceable parts are the encoder backbone, decoder backbone, prior, and ELBO configuration.
 
-## What This Demonstrates
+## Results
 
-A VAE does not encode an image `x` into one deterministic vector. The encoder outputs parameters of a posterior distribution:
+All experiments use MNIST. Checkpoints are not committed; the repository keeps only lightweight figures and evaluation summaries.
+
+| Experiment | Backbone | Prior | KL mode | Loss | Recon | KL |
+| --- | --- | --- | --- | ---: | ---: | ---: |
+| MLP VAE | MLP | Standard normal | Analytic | 100.05 | 79.98 | 20.07 |
+| CNN VAE | CNN | Standard normal | Analytic | 95.98 | 75.31 | 20.67 |
+| Beta-VAE | MLP | Standard normal | Analytic | 142.58 | 107.85 | 8.68 |
+| Transformer VAE | Patch Transformer | Standard normal | Analytic | 96.04 | 73.92 | 22.13 |
+| Flow-prior VAE | MLP | RealNVP-style flow | Monte Carlo | 95.75 | 75.99 | 19.76 |
+
+| Experiment | Reconstructions | Prior samples |
+| --- | --- | --- |
+| MLP VAE | ![MLP reconstructions](assets/figures/mlp_reconstructions.png) | ![MLP samples](assets/figures/mlp_samples_from_prior.png) |
+| CNN VAE | ![CNN reconstructions](assets/figures/cnn_reconstructions.png) | ![CNN samples](assets/figures/cnn_samples_from_prior.png) |
+| Beta-VAE | ![Beta-VAE reconstructions](assets/figures/beta_vae_reconstructions.png) | ![Beta-VAE samples](assets/figures/beta_vae_samples_from_prior.png) |
+| Transformer VAE | ![Transformer reconstructions](assets/figures/transformer_reconstructions.png) | ![Transformer samples](assets/figures/transformer_samples_from_prior.png) |
+| Flow-prior VAE | ![Flow-prior reconstructions](assets/figures/flow_prior_reconstructions.png) | ![Flow-prior samples](assets/figures/flow_prior_samples_from_prior.png) |
+
+MLP VAE training curves:
+
+![MLP training curves](assets/figures/mlp_training_curves.png)
+
+Full metric YAML files live in [`assets/results`](assets/results).
+
+## Probabilistic Model
+
+A VAE does not encode an image into a deterministic vector. The encoder parameterizes an approximate posterior:
+
+$$
+q_\phi(z \mid x) =
+\mathcal{N}\left(
+z;
+\mu_\phi(x),
+\operatorname{diag}(\sigma_\phi^2(x))
+\right).
+$$
+
+Sampling is written with the reparameterization trick:
+
+$$
+\epsilon \sim \mathcal{N}(0, I),
+\qquad
+z = \mu_\phi(x) + \sigma_\phi(x) \odot \epsilon.
+$$
+
+The training objective is the negative ELBO:
+
+$$
+\mathcal{L}(x)
+=
+\mathbb{E}_{q_\phi(z \mid x)}
+\left[-\log p_\theta(x \mid z)\right]
++
+\beta\,
+\operatorname{KL}
+\left(q_\phi(z \mid x)\,\|\,p_\psi(z)\right).
+$$
+
+For the standard Gaussian prior,
+
+$$
+p(z) = \mathcal{N}(0, I),
+$$
+
+the diagonal Gaussian KL is analytic:
+
+$$
+\operatorname{KL}
+\left(q_\phi(z \mid x)\,\|\,\mathcal{N}(0,I)\right)
+=
+\frac{1}{2}
+\sum_j
+\left(
+\mu_j^2 + \sigma_j^2 - 1 - \log \sigma_j^2
+\right).
+$$
+
+For learned or nonstandard priors, the KL is estimated with one posterior sample:
+
+$$
+\operatorname{KL}
+\left(q_\phi(z \mid x)\,\|\,p_\psi(z)\right)
+\approx
+\log q_\phi(z \mid x) - \log p_\psi(z),
+\qquad
+z \sim q_\phi(z \mid x).
+$$
+
+The flow prior transforms a standard Gaussian base variable:
+
+$$
+u \sim \mathcal{N}(0,I),
+\qquad
+z = f_\psi(u).
+$$
+
+Its density is computed by change of variables:
+
+$$
+\log p_\psi(z)
+=
+\log p_0(f_\psi^{-1}(z))
++
+\log
+\left|
+\det
+\frac{\partial f_\psi^{-1}}{\partial z}
+\right|.
+$$
+
+The Transformer VAE in this repository is not a different probabilistic model. It is only a patch-based backbone behind the same posterior, sampling, prior, and ELBO interface.
+
+## What Is Modular
+
+- Posterior: `DiagonalGaussian`
+- Prior: `StandardNormalPrior` or `FlowPrior`
+- Encoder backbone: MLP, CNN, or patch Transformer
+- Decoder backbone: MLP, CNN, or patch Transformer
+- Objective: standard VAE, beta-VAE, analytic KL, or Monte Carlo KL
+
+The main `VAE` class only knows how to:
 
 ```text
-q_phi(z|x) = N(mu(x), diag(sigma^2(x)))
+encode(x) -> q_phi(z|x)
+sample z
+decode(z) -> x_hat
 ```
 
-Sampling uses the reparameterization trick:
+Everything else is configured from YAML.
 
-```text
-z = mu + sigma * epsilon,   epsilon ~ N(0, I)
-```
+## Quick Use
 
-That keeps sampling differentiable with respect to `mu` and `sigma`. The decoder then models `p_theta(x|z)` by reconstructing the image from `z`.
-
-The KL term aligns the posterior `q_phi(z|x)` with a prior `p_psi(z)`. With a standard Gaussian prior, the KL has a closed form. With a flow prior, the loss uses Monte Carlo KL:
-
-```text
-KL(q_phi(z|x) || p_psi(z)) ~= log q_phi(z|x) - log p_psi(z)
-```
-
-The Transformer VAE here is not a different probabilistic model. It is only a different encoder/decoder backbone behind the same posterior, sampling, prior, and ELBO interface.
-
-## Project Structure
-
-```text
-configs/                  YAML experiment configs
-vae/distributions.py       DiagonalGaussian posterior helper
-vae/priors.py              StandardNormalPrior and FlowPrior
-vae/flows.py               RealNVP-style affine coupling flow
-vae/losses.py              ELBO / beta-VAE loss
-vae/builders.py            Config-driven component builders
-vae/models/                MLP, CNN, and Transformer VAE backbones
-vae/data/mnist.py          MNIST dataloaders
-vae/train.py               Training entry point
-vae/sample.py              Prior sampling entry point
-vae/evaluate.py            Test-set evaluation
-vae/visualize.py           Reconstruction, sampling, interpolation, curves
-docs/                      Short conceptual notes
-```
-
-## Install
+Install PyTorch for your machine, then install the remaining dependencies:
 
 ```bash
-pip install -r requirements.txt
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+uv pip install -r requirements.txt
 ```
 
-## Experiments
+Run all experiments:
 
-Train the standard MLP VAE:
+```bash
+bash scripts/run_all_experiments.sh
+```
+
+Run one experiment:
 
 ```bash
 python -m vae.train --config configs/mnist_mlp_standard.yaml
 ```
 
-Train the CNN VAE:
+Generate evaluation and figures:
 
 ```bash
-python -m vae.train --config configs/mnist_cnn_standard.yaml
-```
-
-Train beta-VAE:
-
-```bash
-python -m vae.train --config configs/mnist_beta_vae.yaml
-```
-
-Train the patch Transformer VAE:
-
-```bash
-python -m vae.train --config configs/mnist_transformer_standard.yaml
-```
-
-Train the flow-prior VAE:
-
-```bash
-python -m vae.train --config configs/mnist_flow_prior.yaml
-```
-
-Outputs are written to `outputs/<experiment_name>/`:
-
-```text
-checkpoint.pt
-training_curves.png
-reconstructions.png
-```
-
-## Sampling
-
-```bash
-python -m vae.sample --checkpoint outputs/mnist_mlp_standard/checkpoint.pt
-```
-
-For a standard VAE, this samples `z ~ N(0, I)`. For a flow-prior VAE, it samples `u ~ N(0, I)` and maps `z = f_psi(u)` before decoding.
-
-## Visualization
-
-```bash
+python -m vae.evaluate --checkpoint outputs/mnist_mlp_standard/checkpoint.pt
 python -m vae.visualize --checkpoint outputs/mnist_mlp_standard/checkpoint.pt
 ```
 
-This writes:
+## Project Map
 
 ```text
-reconstructions.png
-samples_from_prior.png
-latent_interpolation.png
-training_curves.png
+configs/                  YAML experiment configs
+vae/distributions.py       DiagonalGaussian posterior
+vae/priors.py              Standard normal and flow priors
+vae/flows.py               RealNVP-style affine coupling flow
+vae/losses.py              ELBO / beta-VAE objective
+vae/builders.py            Config-driven component builders
+vae/models/                MLP, CNN, and Transformer backbones
+vae/train.py               Training entry point
+vae/evaluate.py            Test-set evaluation
+vae/sample.py              Prior sampling
+vae/visualize.py           Figures and latent interpolation
+docs/                      Short conceptual notes
+assets/                    Published figures and metrics
 ```
 
-If `latent_dim = 2`, it also writes `latent_space_2d.png`, plotting posterior means `mu(x)`.
+## Documentation
 
-## Configuration
+- [VAE overview](docs/vae_overview.md)
+- [ELBO](docs/elbo.md)
+- [Reparameterization](docs/reparameterization.md)
+- [Flow prior](docs/flow_prior.md)
 
-The core knobs are:
+## License
 
-```yaml
-model:
-  encoder: mlp        # mlp | cnn | transformer
-  decoder: mlp        # mlp | cnn | transformer
-  latent_dim: 16
-
-prior:
-  type: standard_normal  # standard_normal | flow
-
-loss:
-  beta: 1.0
-  kl_mode: analytic      # analytic | monte_carlo
-```
-
-Use `kl_mode: analytic` with `StandardNormalPrior`. Use `kl_mode: monte_carlo` when the prior is learned or nonstandard, such as `FlowPrior`.
+MIT.

@@ -1,0 +1,26 @@
+[project]
+name = "modular-vae-demo"
+version = "0.1.0"
+description = "A clean PyTorch demo of modular Variational Autoencoders with replaceable backbones and priors."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Zepeng" }]
+dependencies = [
+    "numpy>=1.24",
+    "PyYAML>=6.0",
+    "matplotlib>=3.8",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+cpu = [
+    "torch>=2.2",
+    "torchvision>=0.17",
+]
+
+[tool.setuptools.packages.find]
+include = ["vae*"]
+
+[tool.uv]
+package = false

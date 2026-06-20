@@ -1,9 +1,10 @@
-cat > .gitignore <<'EOF'
 __pycache__/
 *.py[cod]
+
 .venv/
 venv/
 .env
+uv.lock
 
 data/
 outputs/*
@@ -14,4 +15,5 @@ outputs/*
 *.ckpt
 
 .DS_Store
-EOF
+.idea/
+.vscode/
