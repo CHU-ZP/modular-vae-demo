@@ -24,15 +24,15 @@ All experiments use MNIST. Checkpoints are not committed; the repository keeps o
 
 | Experiment | Reconstructions | Prior samples |
 | --- | --- | --- |
-| MLP VAE | ![MLP reconstructions](assets/figures/mlp_reconstructions.png) | ![MLP samples](assets/figures/mlp_samples_from_prior.png) |
-| CNN VAE | ![CNN reconstructions](assets/figures/cnn_reconstructions.png) | ![CNN samples](assets/figures/cnn_samples_from_prior.png) |
-| Beta-VAE | ![Beta-VAE reconstructions](assets/figures/beta_vae_reconstructions.png) | ![Beta-VAE samples](assets/figures/beta_vae_samples_from_prior.png) |
-| Transformer VAE | ![Transformer reconstructions](assets/figures/transformer_reconstructions.png) | ![Transformer samples](assets/figures/transformer_samples_from_prior.png) |
-| Flow-prior VAE | ![Flow-prior reconstructions](assets/figures/flow_prior_reconstructions.png) | ![Flow-prior samples](assets/figures/flow_prior_samples_from_prior.png) |
+| MLP VAE | <img src="assets/figures/mlp_reconstructions.png" width="260" alt="MLP reconstructions"> | <img src="assets/figures/mlp_samples_from_prior.png" width="260" alt="MLP prior samples"> |
+| CNN VAE | <img src="assets/figures/cnn_reconstructions.png" width="260" alt="CNN reconstructions"> | <img src="assets/figures/cnn_samples_from_prior.png" width="260" alt="CNN prior samples"> |
+| Beta-VAE | <img src="assets/figures/beta_vae_reconstructions.png" width="260" alt="Beta-VAE reconstructions"> | <img src="assets/figures/beta_vae_samples_from_prior.png" width="260" alt="Beta-VAE prior samples"> |
+| Transformer VAE | <img src="assets/figures/transformer_reconstructions.png" width="260" alt="Transformer reconstructions"> | <img src="assets/figures/transformer_samples_from_prior.png" width="260" alt="Transformer prior samples"> |
+| Flow-prior VAE | <img src="assets/figures/flow_prior_reconstructions.png" width="260" alt="Flow-prior reconstructions"> | <img src="assets/figures/flow_prior_samples_from_prior.png" width="260" alt="Flow-prior prior samples"> |
 
 MLP VAE training curves:
 
-![MLP training curves](assets/figures/mlp_training_curves.png)
+<img src="assets/figures/mlp_training_curves.png" width="760" alt="MLP VAE training curves">
 
 Full metric YAML files live in [`assets/results`](assets/results).
 
@@ -41,85 +41,49 @@ Full metric YAML files live in [`assets/results`](assets/results).
 A VAE does not encode an image into a deterministic vector. The encoder parameterizes an approximate posterior:
 
 $$
-q_\phi(z \mid x) =
-\mathcal{N}\left(
-z;
-\mu_\phi(x),
-\operatorname{diag}(\sigma_\phi^2(x))
-\right).
+q_\phi(z \mid x) = \mathcal{N}\left(z; \mu_\phi(x), \mathrm{diag}(\sigma_\phi^2(x))\right)
 $$
 
 Sampling is written with the reparameterization trick:
 
 $$
-\epsilon \sim \mathcal{N}(0, I),
-\qquad
-z = \mu_\phi(x) + \sigma_\phi(x) \odot \epsilon.
+\epsilon \sim \mathcal{N}(0, I), \qquad z = \mu_\phi(x) + \sigma_\phi(x) \odot \epsilon
 $$
 
 The training objective is the negative ELBO:
 
 $$
-\mathcal{L}(x)
-=
-\mathbb{E}_{q_\phi(z \mid x)}
-\left[-\log p_\theta(x \mid z)\right]
-+
-\beta\,
-\operatorname{KL}
-\left(q_\phi(z \mid x)\,\|\,p_\psi(z)\right).
+\mathcal{L}(x) = \mathbb{E}_{q_\phi(z \mid x)}\left[-\log p_\theta(x \mid z)\right] + \beta\,\mathrm{KL}\left(q_\phi(z \mid x) \Vert p_\psi(z)\right)
 $$
 
 For the standard Gaussian prior,
 
 $$
-p(z) = \mathcal{N}(0, I),
+p(z) = \mathcal{N}(0, I)
 $$
 
 the diagonal Gaussian KL is analytic:
 
 $$
-\operatorname{KL}
-\left(q_\phi(z \mid x)\,\|\,\mathcal{N}(0,I)\right)
-=
-\frac{1}{2}
-\sum_j
-\left(
-\mu_j^2 + \sigma_j^2 - 1 - \log \sigma_j^2
-\right).
+\mathrm{KL}\left(q_\phi(z \mid x) \Vert \mathcal{N}(0,I)\right) = \frac{1}{2}\sum_j\left(\mu_j^2 + \sigma_j^2 - 1 - \log \sigma_j^2\right)
 $$
 
 For learned or nonstandard priors, the KL is estimated with one posterior sample:
 
 $$
-\operatorname{KL}
-\left(q_\phi(z \mid x)\,\|\,p_\psi(z)\right)
-\approx
-\log q_\phi(z \mid x) - \log p_\psi(z),
-\qquad
-z \sim q_\phi(z \mid x).
+\mathrm{KL}\left(q_\phi(z \mid x) \Vert p_\psi(z)\right) \approx \log q_\phi(z \mid x) - \log p_\psi(z), \qquad z \sim q_\phi(z \mid x)
 $$
 
 The flow prior transforms a standard Gaussian base variable:
 
 $$
-u \sim \mathcal{N}(0,I),
-\qquad
-z = f_\psi(u).
+u \sim \mathcal{N}(0,I), \qquad z = f_\psi(u)
 $$
 
 Its density is computed by change of variables:
 
 $$
-\log p_\psi(z)
-=
-\log p_0(f_\psi^{-1}(z))
-+
-\log
-\left|
-\det
-\frac{\partial f_\psi^{-1}}{\partial z}
-\right|.
+\log p_\psi(z) = \log p_0(f_\psi^{-1}(z)) + \log\left|\det\frac{\partial f_\psi^{-1}}{\partial z}\right|
 $$
 
 The Transformer VAE in this repository is not a different probabilistic model. It is only a patch-based backbone behind the same posterior, sampling, prior, and ELBO interface.
