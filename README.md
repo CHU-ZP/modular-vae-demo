@@ -12,7 +12,7 @@ The fixed part is the probabilistic interface. The replaceable parts are the enc
 
 ## Results
 
-All experiments use MNIST. Checkpoints are not committed; the repository keeps only lightweight figures and evaluation summaries.
+All experiments use MNIST.
 
 | Experiment | Backbone | Prior | KL mode | Loss | Recon | KL |
 | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -29,10 +29,6 @@ All experiments use MNIST. Checkpoints are not committed; the repository keeps o
 | Beta-VAE | <img src="assets/figures/beta_vae_reconstructions.png" width="260" alt="Beta-VAE reconstructions"> | <img src="assets/figures/beta_vae_samples_from_prior.png" width="260" alt="Beta-VAE prior samples"> |
 | Transformer VAE | <img src="assets/figures/transformer_reconstructions.png" width="260" alt="Transformer reconstructions"> | <img src="assets/figures/transformer_samples_from_prior.png" width="260" alt="Transformer prior samples"> |
 | Flow-prior VAE | <img src="assets/figures/flow_prior_reconstructions.png" width="260" alt="Flow-prior reconstructions"> | <img src="assets/figures/flow_prior_samples_from_prior.png" width="260" alt="Flow-prior prior samples"> |
-
-MLP VAE training curves:
-
-<img src="assets/figures/mlp_training_curves.png" width="760" alt="MLP VAE training curves">
 
 Full metric YAML files live in [`assets/results`](assets/results).
 
