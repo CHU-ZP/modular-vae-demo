@@ -2,15 +2,28 @@
 
 A Variational Autoencoder learns a latent-variable model with two distributions:
 
-```text
-q_phi(z|x)  approximate posterior from data to latent
-p_theta(x|z) decoder / likelihood from latent to data
-```
+$$
+q_\phi(z \mid x)
+$$
 
-This demo keeps that probabilistic interface fixed:
+is the approximate posterior from data to latent variables, and
+
+$$
+p_\theta(x \mid z)
+$$
+
+is the decoder likelihood from latent variables back to data.
+
+This demo keeps the probabilistic route fixed:
 
 ```text
 x -> q_phi(z|x) -> z -> p_theta(x|z)
 ```
+
+The encoder parameterizes a diagonal Gaussian posterior:
+
+$$
+q_\phi(z \mid x) = \mathcal{N}\left(z; \mu_\phi(x), \mathrm{diag}(\sigma_\phi^2(x))\right)
+$$
 
 MLP, CNN, and Transformer modules are only replaceable backbones used to parameterize the same distributions.
